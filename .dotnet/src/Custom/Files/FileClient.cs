@@ -327,26 +327,6 @@ public partial class FileClient
         return ClientResult.FromValue(internalDeletion.Deleted, result.GetRawResponse());
     }
 
-    /// <summary> Deletes a previously uploaded file. </summary>
-    /// <param name="file"> The file to delete. </param>
-    /// <exception cref="ArgumentNullException"> <paramref name="file"/> is null. </exception>
-    /// <returns> A boolean value indicating whether the deletion request was successful. </returns>
-    public virtual Task<ClientResult<bool>> DeleteFileAsync(OpenAIFileInfo file)
-    {
-        Argument.AssertNotNull(file, nameof(file));
-        return DeleteFileAsync(file.Id);
-    }
-
-    /// <summary> Deletes a previously uploaded file. </summary>
-    /// <param name="file"> The file to delete. </param>
-    /// <exception cref="ArgumentNullException"> <paramref name="file"/> is null. </exception>
-    /// <returns> A boolean value indicating whether the deletion request was successful. </returns>
-    public virtual ClientResult<bool> DeleteFile(OpenAIFileInfo file)
-    {
-        Argument.AssertNotNull(file.Id, nameof(file));
-        return DeleteFile(file.Id);
-    }
-
     /// <summary> Downloads the binary content of the specified file. </summary>
     /// <param name="fileId"> The ID of the file to download. </param>
     /// <param name="cancellationToken">A token that can be used to cancel this method call.</param>
@@ -373,25 +353,5 @@ public partial class FileClient
 
         ClientResult result = DownloadFile(fileId, cancellationToken.ToRequestOptions());
         return ClientResult.FromValue(result.GetRawResponse().Content, result.GetRawResponse());
-    }
-
-    /// <summary> Downloads the binary content of the specified file. </summary>
-    /// <param name="file"> The file to download. </param>
-    /// <exception cref="ArgumentNullException"> <paramref name="file"/> is null. </exception>
-    /// <returns> The binary content of the uploaded file. </returns>
-    public virtual Task<ClientResult<BinaryData>> DownloadFileAsync(OpenAIFileInfo file)
-    {
-        Argument.AssertNotNull(file, nameof(file));
-        return DownloadFileAsync(file.Id);
-    }
-
-    /// <summary> Downloads the binary content of the specified file. </summary>
-    /// <param name="file"> The file to download. </param>
-    /// <exception cref="ArgumentNullException"> <paramref name="file"/> is null. </exception>
-    /// <returns> The binary content of the uploaded file. </returns>
-    public virtual ClientResult<BinaryData> DownloadFile(OpenAIFileInfo file)
-    {
-        Argument.AssertNotNull(file, nameof(file));
-        return DownloadFile(file.Id);
     }
 }

@@ -89,7 +89,7 @@ public partial class AssistantExamples
             }
         });
 
-        ThreadRun run = client.CreateRun(thread, assistant);
+        ThreadRun run = client.CreateRun(thread.Id, assistant.Id);
         #endregion
 
         #region Complete the run, calling functions as needed
@@ -173,7 +173,9 @@ public partial class AssistantExamples
 
             #region List run steps for details about tool calls
             PageCollection<RunStep> runSteps = client.GetRunSteps(
-                run, new RunStepCollectionOptions()
+                run.ThreadId,
+                run.Id,
+                new RunStepCollectionOptions()
                 {
                     Order = ListOrder.OldestFirst
                 });
@@ -198,8 +200,8 @@ public partial class AssistantExamples
         #endregion
 
         #region Clean up any temporary resources that are no longer needed
-        _ = client.DeleteThread(thread);
-        _ = client.DeleteAssistant(assistant);
+        _ = client.DeleteThread(thread.Id);
+        _ = client.DeleteAssistant(assistant.Id);
         _ = fileClient.DeleteFile(favoriteNumberFile.Id);
         #endregion
     }

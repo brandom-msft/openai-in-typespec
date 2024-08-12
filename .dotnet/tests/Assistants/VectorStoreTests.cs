@@ -25,7 +25,7 @@ public partial class VectorStoreTests
 
         VectorStore vectorStore = client.CreateVectorStore();
         Validate(vectorStore);
-        bool deleted = client.DeleteVectorStore(vectorStore);
+        bool deleted = client.DeleteVectorStore(vectorStore.Id);
         Assert.That(deleted, Is.True);
         _vectorStoresToDelete.RemoveAt(_vectorStoresToDelete.Count - 1);
 
@@ -57,7 +57,7 @@ public partial class VectorStoreTests
             Assert.That(vectorStore.Status, Is.EqualTo(VectorStoreStatus.InProgress));
             Assert.That(vectorStore.Metadata?.TryGetValue("test-key", out string metadataValue) == true && metadataValue == "test-value");
         });
-        vectorStore = client.GetVectorStore(vectorStore);
+        vectorStore = client.GetVectorStore(vectorStore.Id);
         Assert.Multiple(() =>
         {
             Assert.That(vectorStore.Name, Is.EqualTo("test vector store"));
@@ -170,7 +170,7 @@ public partial class VectorStoreTests
 
         foreach (OpenAIFileInfo file in files)
         {
-            VectorStoreFileAssociation association = client.AddFileToVectorStore(vectorStore, file);
+            VectorStoreFileAssociation association = client.AddFileToVectorStore(vectorStore.Id, file.Id);
             Validate(association);
             Assert.Multiple(() =>
             {
@@ -182,7 +182,7 @@ public partial class VectorStoreTests
             });
         }
 
-        bool removed = client.RemoveFileFromStore(vectorStore, files[0]);
+        bool removed = client.RemoveFileFromStore(vectorStore.Id, files[0].Id);
         Assert.True(removed);
         _associationsToRemove.RemoveAt(0);
 
@@ -190,7 +190,7 @@ public partial class VectorStoreTests
         Thread.Sleep(1000);
 
         int count = 0;
-        foreach (VectorStoreFileAssociation association in client.GetFileAssociations(vectorStore).GetAllValues())
+        foreach (VectorStoreFileAssociation association in client.GetFileAssociations(vectorStore.Id).GetAllValues())
         {
             count++;
             Assert.That(association.FileId, Is.Not.EqualTo(files[0].Id));
@@ -210,7 +210,7 @@ public partial class VectorStoreTests
 
         foreach (OpenAIFileInfo file in files)
         {
-            VectorStoreFileAssociation association = client.AddFileToVectorStore(vectorStore, file);
+            VectorStoreFileAssociation association = client.AddFileToVectorStore(vectorStore.Id, file.Id);
             Validate(association);
             Assert.Multiple(() =>
             {
@@ -222,14 +222,14 @@ public partial class VectorStoreTests
             });
         }
 
-        bool removed = client.RemoveFileFromStore(vectorStore, files[0]);
+        bool removed = client.RemoveFileFromStore(vectorStore.Id, files[0].Id);
         Assert.True(removed);
         _associationsToRemove.RemoveAt(0);
 
         // Errata: removals aren't immediately reflected when requesting the list
         Thread.Sleep(1000);
 
-        PageCollection<VectorStoreFileAssociation> pages = client.GetFileAssociations(vectorStore);
+        PageCollection<VectorStoreFileAssociation> pages = client.GetFileAssociations(vectorStore.Id);
         IEnumerator<PageResult<VectorStoreFileAssociation>> pageEnumerator = ((IEnumerable<PageResult<VectorStoreFileAssociation>>)pages).GetEnumerator();
 
         // Simulate rehydration of the collection
@@ -271,7 +271,7 @@ public partial class VectorStoreTests
 
         IReadOnlyList<OpenAIFileInfo> testFiles = GetNewTestFiles(5);
 
-        VectorStoreBatchFileJob batchJob = client.CreateBatchFileJob(vectorStore, testFiles);
+        VectorStoreBatchFileJob batchJob = client.CreateBatchFileJob(vectorStore.Id, testFiles.Select(file => file.Id));
         Validate(batchJob);
 
         Assert.Multiple(() =>
@@ -281,12 +281,12 @@ public partial class VectorStoreTests
             Assert.That(batchJob.Status, Is.EqualTo(VectorStoreBatchFileJobStatus.InProgress));
         });
 
-        for (int i = 0; i < 10 && client.GetBatchFileJob(batchJob).Value.Status != VectorStoreBatchFileJobStatus.Completed; i++)
+        for (int i = 0; i < 10 && client.GetBatchFileJob(batchJob.VectorStoreId, batchJob.BatchId).Value.Status != VectorStoreBatchFileJobStatus.Completed; i++)
         {
             Thread.Sleep(500);
         }
 
-        foreach (VectorStoreFileAssociation association in client.GetFileAssociations(batchJob).GetAllValues())
+        foreach (VectorStoreFileAssociation association in client.GetFileAssociations(batchJob.VectorStoreId).GetAllValues())
         {
             Assert.Multiple(() =>
             {
@@ -332,7 +332,7 @@ public partial class VectorStoreTests
         Validate(vectorStore);
         Assert.That(vectorStore.FileCounts.Total, Is.EqualTo(5));
 
-        AsyncPageCollection<VectorStoreFileAssociation> associations = client.GetFileAssociationsAsync(vectorStore);
+        AsyncPageCollection<VectorStoreFileAssociation> associations = client.GetFileAssociationsAsync(vectorStore.Id);
 
         await foreach (VectorStoreFileAssociation association in associations.GetAllValuesAsync())
         {

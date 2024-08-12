@@ -127,7 +127,7 @@ public partial class AssistantTests
         Assert.That(thread.Metadata.TryGetValue("threadMetadata", out string threadMetadataValue) && threadMetadataValue == "threadMetadataValue");
         AssistantThread retrievedThread = client.GetThread(thread.Id);
         Assert.That(retrievedThread.Id, Is.EqualTo(thread.Id));
-        thread = client.ModifyThread(thread, new ThreadModificationOptions()
+        thread = client.ModifyThread(thread.Id, new ThreadModificationOptions()
         {
             Metadata =
             {
@@ -143,17 +143,17 @@ public partial class AssistantTests
         AssistantClient client = GetTestClient();
         AssistantThread thread = client.CreateThread();
         Validate(thread);
-        ThreadMessage message = client.CreateMessage(thread, MessageRole.User, ["Hello, world!"]);
+        ThreadMessage message = client.CreateMessage(thread.Id, MessageRole.User, ["Hello, world!"]);
         Validate(message);
         Assert.That(message.CreatedAt, Is.GreaterThan(s_2024));
         Assert.That(message.Content?.Count, Is.EqualTo(1));
         Assert.That(message.Content[0], Is.Not.Null);
         Assert.That(message.Content[0].Text, Is.EqualTo("Hello, world!"));
-        bool deleted = client.DeleteMessage(message);
+        bool deleted = client.DeleteMessage(message.ThreadId, message.Id);
         Assert.That(deleted, Is.True);
         _messagesToDelete.Remove(message);
 
-        message = client.CreateMessage(thread, MessageRole.User, ["Goodbye, world!"], new MessageCreationOptions()
+        message = client.CreateMessage(thread.Id, MessageRole.User, ["Goodbye, world!"], new MessageCreationOptions()
         {
             Metadata =
             {
@@ -166,7 +166,7 @@ public partial class AssistantTests
         ThreadMessage retrievedMessage = client.GetMessage(thread.Id, message.Id);
         Assert.That(retrievedMessage.Id, Is.EqualTo(message.Id));
 
-        message = client.ModifyMessage(message, new MessageModificationOptions()
+        message = client.ModifyMessage(message.ThreadId, message.Id, new MessageModificationOptions()
         {
             Metadata =
             {
@@ -175,7 +175,7 @@ public partial class AssistantTests
         });
         Assert.That(message.Metadata.TryGetValue("messageMetadata", out metadataValue) && metadataValue == "newValue");
 
-        PageResult<ThreadMessage> messagePage = client.GetMessages(thread).GetCurrentPage();
+        PageResult<ThreadMessage> messagePage = client.GetMessages(thread.Id).GetCurrentPage();
         Assert.That(messagePage.Values.Count, Is.EqualTo(1));
         Assert.That(messagePage.Values[0].Id, Is.EqualTo(message.Id));
         Assert.That(messagePage.Values[0].Metadata.TryGetValue("messageMetadata", out metadataValue) && metadataValue == "newValue");
@@ -206,7 +206,7 @@ public partial class AssistantTests
         };
         AssistantThread thread = client.CreateThread(options);
         Validate(thread);
-        PageResult<ThreadMessage> messagesPage = client.GetMessages(thread, new MessageCollectionOptions() { Order = ListOrder.OldestFirst }).GetCurrentPage();
+        PageResult<ThreadMessage> messagesPage = client.GetMessages(thread.Id, new MessageCollectionOptions() { Order = ListOrder.OldestFirst }).GetCurrentPage();
         Assert.That(messagesPage.Values.Count, Is.EqualTo(2));
         Assert.That(messagesPage.Values[0].Role, Is.EqualTo(MessageRole.User));
         Assert.That(messagesPage.Values[0].Content?.Count, Is.EqualTo(1));
@@ -226,7 +226,7 @@ public partial class AssistantTests
         Validate(assistant);
         AssistantThread thread = client.CreateThread();
         Validate(thread);
-        PageResult<ThreadRun> runsPage = client.GetRuns(thread).GetCurrentPage();
+        PageResult<ThreadRun> runsPage = client.GetRuns(thread.Id).GetCurrentPage();
         Assert.That(runsPage.Values.Count, Is.EqualTo(0));
         ThreadMessage message = client.CreateMessage(thread.Id, MessageRole.User, ["Hello, assistant!"]);
         Validate(message);
@@ -236,16 +236,16 @@ public partial class AssistantTests
         Assert.That(run.CreatedAt, Is.GreaterThan(s_2024));
         ThreadRun retrievedRun = client.GetRun(thread.Id, run.Id);
         Assert.That(retrievedRun.Id, Is.EqualTo(run.Id));
-        runsPage = client.GetRuns(thread).GetCurrentPage();
+        runsPage = client.GetRuns(thread.Id).GetCurrentPage();
         Assert.That(runsPage.Values.Count, Is.EqualTo(1));
         Assert.That(runsPage.Values[0].Id, Is.EqualTo(run.Id));
 
-        PageResult<ThreadMessage> messagesPage = client.GetMessages(thread).GetCurrentPage();
+        PageResult<ThreadMessage> messagesPage = client.GetMessages(thread.Id).GetCurrentPage();
         Assert.That(messagesPage.Values.Count, Is.GreaterThanOrEqualTo(1));
         for (int i = 0; i < 10 && !run.Status.IsTerminal; i++)
         {
             Thread.Sleep(1000);
-            run = client.GetRun(run);
+            run = client.GetRun(run.ThreadId, run.Id);
         }
         Assert.That(run.Status, Is.EqualTo(RunStatus.Completed));
         Assert.That(run.CompletedAt, Is.GreaterThan(s_2024));
@@ -254,7 +254,7 @@ public partial class AssistantTests
         Assert.That(run.FailedAt, Is.Null);
         Assert.That(run.IncompleteDetails, Is.Null);
 
-        messagesPage = client.GetMessages(thread).GetCurrentPage();
+        messagesPage = client.GetMessages(thread.Id).GetCurrentPage();
         Assert.That(messagesPage.Values.Count, Is.EqualTo(2));
 
         Assert.That(messagesPage.Values[0].Role, Is.EqualTo(MessageRole.Assistant));
@@ -303,18 +303,18 @@ public partial class AssistantTests
         });
         Validate(thread);
 
-        ThreadRun run = client.CreateRun(thread, assistant);
+        ThreadRun run = client.CreateRun(thread.Id, assistant.Id);
         Validate(run);
 
         while (!run.Status.IsTerminal)
         {
             Thread.Sleep(1000);
-            run = client.GetRun(run);
+            run = client.GetRun(run.ThreadId, run.Id);
         }
         Assert.That(run.Status, Is.EqualTo(RunStatus.Completed));
         Assert.That(run.Usage?.TotalTokens, Is.GreaterThan(0));
 
-        PageCollection<RunStep> pages = client.GetRunSteps(run);
+        PageCollection<RunStep> pages = client.GetRunSteps(run.ThreadId, run.Id);
         PageResult<RunStep> firstPage = pages.GetCurrentPage();
         RunStep firstStep = firstPage.Values[0];
         RunStep secondStep = firstPage.Values[1];
@@ -355,16 +355,18 @@ public partial class AssistantTests
         });
         Validate(assistant);
         Assert.That(assistant.ResponseFormat, Is.EqualTo(AssistantResponseFormat.JsonObject));
-        assistant = client.ModifyAssistant(assistant, new()
-        {
-            ResponseFormat = AssistantResponseFormat.Text,
-        });
+        assistant = client.ModifyAssistant(
+            assistant.Id,
+            new AssistantModificationOptions()
+            {
+                ResponseFormat = AssistantResponseFormat.Text,
+            });
         Assert.That(assistant.ResponseFormat, Is.EqualTo(AssistantResponseFormat.Text));
         AssistantThread thread = client.CreateThread();
         Validate(thread);
-        ThreadMessage message = client.CreateMessage(thread, MessageRole.User, ["Write some JSON for me!"]);
+        ThreadMessage message = client.CreateMessage(thread.Id, MessageRole.User, ["Write some JSON for me!"]);
         Validate(message);
-        ThreadRun run = client.CreateRun(thread, assistant, new()
+        ThreadRun run = client.CreateRun(thread.Id, assistant.Id, new()
         {
             ResponseFormat = AssistantResponseFormat.JsonObject,
         });
@@ -407,7 +409,7 @@ public partial class AssistantTests
         Assert.That(responseToolDefinition?.Parameters, Is.Not.Null);
 
         ThreadRun run = client.CreateThreadAndRun(
-            assistant,
+            assistant.Id,
             new ThreadCreationOptions()
             {
                 InitialMessages = { "What should I eat on Thursday?" },
@@ -421,7 +423,7 @@ public partial class AssistantTests
         for (int i = 0; i < 10 && !run.Status.IsTerminal; i++)
         {
             Thread.Sleep(1000);
-            run = client.GetRun(run);
+            run = client.GetRun(run.ThreadId, run.Id);
         }
         Assert.That(run.Status, Is.EqualTo(RunStatus.RequiresAction));
         Assert.That(run.RequiredActions?.Count, Is.EqualTo(1));
@@ -429,13 +431,13 @@ public partial class AssistantTests
         Assert.That(run.RequiredActions[0].FunctionName, Is.EqualTo("get_favorite_food_for_day_of_week"));
         Assert.That(run.RequiredActions[0].FunctionArguments, Is.Not.Null.And.Not.Empty);
 
-        run = client.SubmitToolOutputsToRun(run, [new(run.RequiredActions[0].ToolCallId, "tacos")]);
+        run = client.SubmitToolOutputsToRun(run.ThreadId, run.Id, [new(run.RequiredActions[0].ToolCallId, "tacos")]);
         Assert.That(run.Status.IsTerminal, Is.False);
 
         for (int i = 0; i < 10 && !run.Status.IsTerminal; i++)
         {
             Thread.Sleep(1000);
-            run = client.GetRun(run);
+            run = client.GetRun(run.ThreadId, run.Id);
         }
         Assert.That(run.Status, Is.EqualTo(RunStatus.Completed));
 
@@ -511,7 +513,7 @@ public partial class AssistantTests
 
         Print(" >>> Beginning call ... ");
         AsyncCollectionResult<StreamingUpdate> asyncResults = client.CreateThreadAndRunStreamingAsync(
-            assistant,
+            assistant.Id,
             new()
             {
                 InitialMessages = { "What should I wear outside right now?", },
@@ -548,7 +550,7 @@ public partial class AssistantTests
             }
             if (toolOutputs.Count > 0)
             {
-                asyncResults = client.SubmitToolOutputsToRunStreamingAsync(run, toolOutputs);
+                asyncResults = client.SubmitToolOutputsToRunStreamingAsync(run.ThreadId, run.Id, toolOutputs);
             }
         } while (run?.Status.IsTerminal == false);
     }
@@ -593,7 +595,7 @@ public partial class AssistantTests
         _vectorStoreIdsToDelete.Add(createdVectorStoreId);
 
         // Modify an assistant to use the existing vector store
-        assistant = client.ModifyAssistant(assistant, new AssistantModificationOptions()
+        assistant = client.ModifyAssistant(assistant.Id, new AssistantModificationOptions()
         {
             ToolResources = new()
             {
@@ -627,7 +629,7 @@ public partial class AssistantTests
         _vectorStoreIdsToDelete.Add(createdVectorStoreId);
 
         // Ensure that modifying the thread with an existing vector store works
-        thread = client.ModifyThread(thread, new ThreadModificationOptions()
+        thread = client.ModifyThread(thread.Id, new ThreadModificationOptions()
         {
             ToolResources = new()
             {
@@ -640,16 +642,16 @@ public partial class AssistantTests
         Assert.That(thread.ToolResources?.FileSearch?.VectorStoreIds, Has.Count.EqualTo(1));
         Assert.That(thread.ToolResources.FileSearch.VectorStoreIds[0], Is.EqualTo(createdVectorStoreId));
 
-        ThreadRun run = client.CreateRun(thread, assistant);
+        ThreadRun run = client.CreateRun(thread.Id, assistant.Id);
         Validate(run);
         do
         {
             Thread.Sleep(1000);
-            run = client.GetRun(run);
+            run = client.GetRun(run.ThreadId, run.Id);
         } while (run?.Status.IsTerminal == false);
         Assert.That(run.Status, Is.EqualTo(RunStatus.Completed));
 
-        IEnumerable<ThreadMessage> messages = client.GetMessages(thread, new() { Order = ListOrder.NewestFirst }).GetAllValues();
+        IEnumerable<ThreadMessage> messages = client.GetMessages(thread.Id, new() { Order = ListOrder.NewestFirst }).GetAllValues();
         int messageCount = 0;
         bool hasCake = false;
         foreach (ThreadMessage message in messages)
@@ -974,18 +976,18 @@ public partial class AssistantTests
         });
         Validate(thread);
 
-        ThreadRun run = client.CreateRun(thread, assistant);
+        ThreadRun run = client.CreateRun(thread.Id, assistant.Id);
         Validate(run);
 
         while (!run.Status.IsTerminal)
         {
             Thread.Sleep(1000);
-            run = client.GetRun(run);
+            run = client.GetRun(run.ThreadId, run.Id);
         }
         Assert.That(run.Status, Is.EqualTo(RunStatus.Completed));
         Assert.That(run.Usage?.TotalTokens, Is.GreaterThan(0));
 
-        PageCollection<RunStep> pages = client.GetRunSteps(run);
+        PageCollection<RunStep> pages = client.GetRunSteps(run.ThreadId, run.Id);
         IEnumerator<PageResult<RunStep>> pageEnumerator = ((IEnumerable<PageResult<RunStep>>)pages).GetEnumerator();
 
         // Simulate rehydration of the collection
@@ -1034,7 +1036,7 @@ public partial class AssistantTests
         async Task RefreshMessageListAsync()
         {
             messages.Clear();
-            await foreach (ThreadMessage message in client.GetMessagesAsync(thread).GetAllValuesAsync())
+            await foreach (ThreadMessage message in client.GetMessagesAsync(thread.Id).GetAllValuesAsync())
             {
                 messages.Add(message);
             }
@@ -1050,13 +1052,13 @@ public partial class AssistantTests
         Assert.That(messages[0].Content[0].Text, Is.EqualTo(assistantMessageText));
         Assert.That(messages[0].Content[0].Text, Is.EqualTo(assistantMessageText));
         ThreadMessage userMessage = await client.CreateMessageAsync(
-            thread,
+            thread.Id,
             MessageRole.User,
             [
                 MessageContent.FromText(userMessageText)
             ]);
         ThreadMessage assistantMessage = await client.CreateMessageAsync(
-            thread,
+            thread.Id,
             MessageRole.Assistant,
             [assistantMessageText]);
         await RefreshMessageListAsync();

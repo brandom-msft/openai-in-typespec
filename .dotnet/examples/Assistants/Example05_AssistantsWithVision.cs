@@ -45,8 +45,8 @@ public partial class AssistantExamples
         });
 
         CollectionResult<StreamingUpdate> streamingUpdates = assistantClient.CreateRunStreaming(
-            thread,
-            assistant,
+            thread.Id,
+            assistant.Id,
             new RunCreationOptions()
             {
                 AdditionalInstructions = "When possible, try to sneak in puns if you're asked to compare things.",
@@ -65,8 +65,8 @@ public partial class AssistantExamples
         }
 
         // Delete temporary resources, if desired
-        _ = fileClient.DeleteFile(pictureOfAppleFile);
-        _ = assistantClient.DeleteThread(thread);
-        _ = assistantClient.DeleteAssistant(assistant);
+        _ = fileClient.DeleteFile(pictureOfAppleFile.Id);
+        _ = assistantClient.DeleteThread(thread.Id);
+        _ = assistantClient.DeleteAssistant(assistant.Id);
     }
 }
