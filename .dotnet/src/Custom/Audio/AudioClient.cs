@@ -88,7 +88,7 @@ public partial class AudioClient
     /// <param name="options"> Additional options to tailor the text-to-speech request. </param>
     /// <param name="cancellationToken">A token that can be used to cancel this method call.</param>
     /// <returns> The generated audio in the specified output format. </returns>
-    public virtual async Task<ClientResult<BinaryData>> GenerateSpeechFromTextAsync(string text, GeneratedSpeechVoice voice, SpeechGenerationOptions options = null, CancellationToken cancellationToken = default)
+    public virtual async Task<ClientResult<BinaryData>> GenerateSpeechAsync(string text, GeneratedSpeechVoice voice, SpeechGenerationOptions options = null, CancellationToken cancellationToken = default)
     {
         Argument.AssertNotNull(text, nameof(text));
 
@@ -96,7 +96,7 @@ public partial class AudioClient
         CreateSpeechGenerationOptions(text, voice, ref options);
 
         using BinaryContent content = options.ToBinaryContent();
-        ClientResult result = await GenerateSpeechFromTextAsync(content, cancellationToken.ToRequestOptions()).ConfigureAwait(false);
+        ClientResult result = await GenerateSpeechAsync(content, cancellationToken.ToRequestOptions()).ConfigureAwait(false);
         return ClientResult.FromValue(result.GetRawResponse().Content, result.GetRawResponse());
     }
 
@@ -112,7 +112,7 @@ public partial class AudioClient
     /// <param name="options"> Additional options to tailor the text-to-speech request. </param>
     /// <param name="cancellationToken">A token that can be used to cancel this method call.</param>
     /// <returns> The generated audio in the specified output format. </returns>
-    public virtual ClientResult<BinaryData> GenerateSpeechFromText(string text, GeneratedSpeechVoice voice, SpeechGenerationOptions options = null, CancellationToken cancellationToken = default)
+    public virtual ClientResult<BinaryData> GenerateSpeech(string text, GeneratedSpeechVoice voice, SpeechGenerationOptions options = null, CancellationToken cancellationToken = default)
     {
         Argument.AssertNotNull(text, nameof(text));
 
@@ -120,7 +120,7 @@ public partial class AudioClient
         CreateSpeechGenerationOptions(text, voice, ref options);
 
         using BinaryContent content = options.ToBinaryContent();
-        ClientResult result = GenerateSpeechFromText(content, cancellationToken.ToRequestOptions()); ;
+        ClientResult result = GenerateSpeech(content, cancellationToken.ToRequestOptions()); ;
         return ClientResult.FromValue(result.GetRawResponse().Content, result.GetRawResponse());
     }
 
